@@ -9,10 +9,16 @@ import {
   formatPrice,
   getStockStatusLabel,
   getStockStatusColor,
-  stripHtml,
 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  ShoppingBag,
+  Heart,
+  ShieldCheck,
+  Truck,
+  RefreshCw,
+} from "lucide-react";
 
 interface ProductInfoProps {
   product: WCProduct;
@@ -29,20 +35,17 @@ export function ProductInfo({ product, variations }: ProductInfoProps) {
 
   const isVariable = product.type === "variable";
 
-  // Find matching variation based on selected attributes
   const selectedVariation = useMemo(() => {
     if (!isVariable || variations.length === 0) return null;
 
     return variations.find((variation) =>
       variation.attributes.every((attr) => {
         const selectedValue = selectedAttributes[attr.name];
-        // Empty option means "any"
         return !attr.option || attr.option === selectedValue;
       }),
     );
   }, [isVariable, variations, selectedAttributes]);
 
-  // Get current price (from variation or product)
   const currentPrice = selectedVariation?.price || product.price;
   const currentRegularPrice =
     selectedVariation?.regular_price || product.regular_price;
@@ -52,7 +55,6 @@ export function ProductInfo({ product, variations }: ProductInfoProps) {
   const stockQuantity =
     selectedVariation?.stock_quantity ?? product.stock_quantity;
 
-  // Check if all required attributes are selected
   const allAttributesSelected = useMemo(() => {
     if (!isVariable) return true;
     return product.attributes
@@ -66,9 +68,7 @@ export function ProductInfo({ product, variations }: ProductInfoProps) {
     if (!canAddToCart) return;
 
     setIsAdding(true);
-
-    // Simulate a small delay for better UX
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     addItem({
       productId: product.id,
@@ -89,88 +89,88 @@ export function ProductInfo({ product, variations }: ProductInfoProps) {
   };
 
   return (
-    <div className="lg:sticky lg:top-24">
+    <div className="lg:sticky lg:top-32">
+      {/* Category & Status */}
+      <div className="mb-4 flex items-center justify-between">
+        {product.categories[0] && (
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-400">
+            {product.categories[0].name}
+          </span>
+        )}
+        <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              stockStatus === "instock" ? "bg-emerald-500" : "bg-rose-500",
+            )}
+          />
+          <span
+            className={cn(
+              "text-[10px] font-bold uppercase tracking-widest",
+              getStockStatusColor(stockStatus),
+            )}
+          >
+            {getStockStatusLabel(stockStatus)}
+          </span>
+        </div>
+      </div>
+
       {/* Product Name */}
-      <h1 className="font-heading text-3xl font-bold tracking-tight text-gray-900 lg:text-4xl">
+      <h1 className="text-4xl font-light uppercase tracking-[0.1em] text-neutral-900 lg:text-5xl lg:leading-tight">
         {product.name}
       </h1>
 
-      {/* Price */}
-      <div className="mt-4 flex items-center gap-3">
+      {/* Price Section */}
+      <div className="mt-8 flex items-baseline gap-4">
         {isOnSale && currentSalePrice ? (
           <>
-            <span className="text-2xl font-bold text-red-600">
+            <span className="text-3xl font-light text-rose-600">
               {formatPrice(currentSalePrice)}
             </span>
-            <span className="text-lg text-gray-400 line-through">
+            <span className="text-lg text-neutral-300 line-through">
               {formatPrice(currentRegularPrice)}
-            </span>
-            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
-              SALE
             </span>
           </>
         ) : (
-          <span className="text-2xl font-bold text-gray-900">
+          <span className="text-3xl font-light text-neutral-900">
             {currentPrice ? formatPrice(currentPrice) : "Price unavailable"}
           </span>
         )}
       </div>
 
-      {/* Stock Status */}
-      <div className="mt-6 flex items-center gap-2">
-        <div
-          className={cn(
-            "h-2 w-2 rounded-full",
-            stockStatus === "instock" ? "bg-green-500" : "bg-red-500",
-          )}
-        />
-        <p
-          className={cn(
-            "text-sm font-medium",
-            getStockStatusColor(stockStatus),
-          )}
-        >
-          {getStockStatusLabel(stockStatus)}
-          {stockQuantity && stockQuantity <= 5 && stockStatus === "instock" && (
-            <span className="ml-1 text-gray-500 font-normal">
-              - Only {stockQuantity} left
-            </span>
-          )}
-        </p>
-      </div>
-
       {/* Short Description */}
       {product.short_description && (
         <div
-          className="mt-8 text-base leading-relaxed text-gray-600 prose prose-sm prose-gray max-w-none"
+          className="mt-8 text-base leading-relaxed text-neutral-500 prose prose-neutral max-w-none font-light"
           dangerouslySetInnerHTML={{ __html: product.short_description }}
         />
       )}
 
-      {/* Variant Selectors */}
+      {/* Variants */}
       {isVariable &&
         product.attributes.filter((attr) => attr.variation).length > 0 && (
-          <div className="mt-6 space-y-4">
+          <div className="mt-12 space-y-8">
             {product.attributes
               .filter((attr) => attr.variation)
               .map((attribute) => (
                 <div key={attribute.id}>
-                  <label className="mb-2 block text-sm font-medium">
-                    {attribute.name}
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-900">
+                      {attribute.name}
+                    </span>
                     {selectedAttributes[attribute.name] && (
-                      <span className="ml-2 font-normal text-gray-500">
-                        : {selectedAttributes[attribute.name]}
+                      <span className="text-[10px] font-medium text-neutral-400">
+                        {selectedAttributes[attribute.name]}
                       </span>
                     )}
-                  </label>
+                  </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                     {attribute.options.map((option) => {
                       const isSelected =
                         selectedAttributes[attribute.name] === option;
                       const isColor = attribute.name.toLowerCase() === "color";
 
-                      // Check if this option is available in any variation
                       const isAvailable = variations.some((v) => {
                         const attrMatch = v.attributes.find(
                           (a) => a.name === attribute.name,
@@ -194,16 +194,18 @@ export function ProductInfo({ product, variations }: ProductInfoProps) {
                             }
                             disabled={!isAvailable}
                             className={cn(
-                              "h-8 w-8 rounded-full border-2 transition-all",
+                              "group relative h-10 w-10 flex items-center justify-center rounded-full border border-neutral-100 transition-all active:scale-95",
                               isSelected
-                                ? "border-black ring-2 ring-black ring-offset-2"
-                                : "border-gray-300",
-                              !isAvailable && "opacity-30 cursor-not-allowed",
+                                ? "ring-2 ring-neutral-900 ring-offset-2"
+                                : "hover:scale-105",
+                              !isAvailable && "opacity-20 cursor-not-allowed",
                             )}
-                            style={{ backgroundColor: option.toLowerCase() }}
-                            title={option}
-                            aria-label={option}
-                          />
+                          >
+                            <div
+                              className="h-8 w-8 rounded-full shadow-inner"
+                              style={{ backgroundColor: option.toLowerCase() }}
+                            />
+                          </button>
                         );
                       }
 
@@ -219,12 +221,12 @@ export function ProductInfo({ product, variations }: ProductInfoProps) {
                           }
                           disabled={!isAvailable}
                           className={cn(
-                            "min-w-14 rounded-full border px-6 py-2.5 text-xs font-bold uppercase tracking-widest transition-all",
+                            "min-w-[64px] border px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95",
                             isSelected
-                              ? "border-black bg-black text-white shadow-md shadow-black/5"
-                              : "border-gray-200 bg-white text-gray-500 hover:border-gray-900 hover:text-black",
+                              ? "border-neutral-900 bg-neutral-900 text-white"
+                              : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-900 hover:text-neutral-900",
                             !isAvailable &&
-                              "opacity-30 cursor-not-allowed line-through",
+                              "opacity-20 cursor-not-allowed line-through",
                           )}
                         >
                           {option}
@@ -237,32 +239,19 @@ export function ProductInfo({ product, variations }: ProductInfoProps) {
           </div>
         )}
 
-      {/* Actions Section */}
-      <div className="mt-10 flex flex-col gap-4">
+      {/* Actions */}
+      <div className="mt-12 flex flex-col gap-6">
         <div className="flex flex-wrap items-stretch gap-4">
           {/* Quantity Selector */}
-          <div className="flex h-12 items-center rounded-full border border-gray-200 bg-gray-50/50 px-2 transition-colors focus-within:border-gray-900 focus-within:bg-white">
+          <div className="flex h-16 items-center border border-neutral-200 bg-neutral-50/50 px-4 transition-all focus-within:border-neutral-900 focus-within:bg-white">
             <button
               type="button"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="group flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white hover:shadow-sm"
-              aria-label="Decrease quantity"
+              className="flex h-8 w-8 items-center justify-center text-neutral-400 hover:text-neutral-900"
             >
-              <svg
-                className="h-3 w-3 text-gray-500 group-hover:text-black"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="3"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19.5 12h-15"
-                />
-              </svg>
+              <span className="text-xl font-light">−</span>
             </button>
-            <span className="w-10 text-center text-sm font-bold tabular-nums">
+            <span className="w-12 text-center text-sm font-bold tabular-nums">
               {quantity}
             </span>
             <button
@@ -273,139 +262,76 @@ export function ProductInfo({ product, variations }: ProductInfoProps) {
                 )
               }
               disabled={stockQuantity ? quantity >= stockQuantity : false}
-              className="group flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white hover:shadow-sm disabled:opacity-30"
-              aria-label="Increase quantity"
+              className="flex h-8 w-8 items-center justify-center text-neutral-400 hover:text-neutral-900 disabled:opacity-20"
             >
-              <svg
-                className="h-3 w-3 text-gray-500 group-hover:text-black"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="3"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 4.5v15m7.5-7.5h-15"
-                />
-              </svg>
+              <span className="text-xl font-light">+</span>
             </button>
           </div>
 
-          {/* Add to Cart Button */}
+          {/* Add to Cart */}
           <Button
             onClick={handleAddToCart}
             disabled={!canAddToCart}
             isLoading={isAdding}
-            className="h-12 flex-1 rounded-full text-xs font-bold uppercase tracking-[0.2em] shadow-lg shadow-black/5"
-            size="lg"
+            className="h-16 flex-1 bg-neutral-900 text-[10px] font-black uppercase tracking-[0.3em] text-white hover:bg-neutral-800"
           >
             {stockStatus === "outofstock"
-              ? "Sold Out"
+              ? "Out of Stock"
               : !allAttributesSelected
-                ? "Select Options"
+                ? "Select Your Size"
                 : "Add to Bag"}
           </Button>
 
-          {/* Wishlist Button */}
-          <button
-            type="button"
-            title="Add to wishlist"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-900 transition-all hover:border-black hover:text-red-500 hover:shadow-md active:scale-95"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-              />
-            </svg>
+          {/* Wishlist */}
+          <button className="flex h-16 w-16 items-center justify-center border border-neutral-200 transition-all hover:border-neutral-900 group">
+            <Heart className="h-5 w-5 text-neutral-900 transition-colors group-hover:fill-neutral-900" />
           </button>
         </div>
 
-        {/* Confidence/Trust Badge or small help text */}
-        <p className="mt-2 text-center text-xs text-gray-400">
-          Complimentary shipping on all orders over $250.
-        </p>
+        {/* Quick Trust */}
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-4 text-[9px] font-black uppercase tracking-[0.2em] text-neutral-400">
+          <div className="flex items-center gap-2">
+            <Truck className="h-3 w-3" />
+            <span>Free Express Shipping</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-3 w-3" />
+            <span>30-Day Returns</span>
+          </div>
+        </div>
       </div>
 
-      {/* Product Details Accordion */}
-      <div className="mt-12 space-y-0 border-t border-gray-100">
-        <details className="group border-b border-gray-100">
-          <summary className="flex cursor-pointer items-center justify-between py-5 text-sm font-bold uppercase tracking-widest text-gray-900 transition-colors hover:text-gray-600">
-            Description
-            <span className="relative flex h-5 w-5 items-center justify-center">
-              <div className="h-4 w-[2px] bg-gray-400 transition-transform duration-300 group-open:rotate-90" />
-              <div className="absolute h-[2px] w-4 bg-gray-400" />
-            </span>
-          </summary>
-          <div
-            className="prose prose-sm prose-gray max-w-none pb-8 text-gray-600 animate-fadeIn"
-            dangerouslySetInnerHTML={{
-              __html: product.description || "No description available.",
-            }}
-          />
-        </details>
-
-        {product.sku && (
-          <details className="group border-b border-gray-100 font-sans">
-            <summary className="flex cursor-pointer items-center justify-between py-5 text-sm font-bold uppercase tracking-widest text-gray-900 transition-colors hover:text-gray-600">
-              Details
-              <span className="relative flex h-5 w-5 items-center justify-center">
-                <div className="h-4 w-[2px] bg-gray-400 transition-transform duration-300 group-open:rotate-90" />
-                <div className="absolute h-[2px] w-4 bg-gray-400" />
-              </span>
+      {/* Accordions */}
+      <div className="mt-16 space-y-px border-t border-neutral-100">
+        {[
+          { title: "Description", content: product.description },
+          {
+            title: "Shipping & Returns",
+            content:
+              "We provide worldwide express shipping. All orders are processed within 24 hours. Returns are accepted within 30 days of delivery for a full refund or exchange.",
+          },
+          {
+            title: "Assistance",
+            content:
+              "Have a question about this piece? Reach out to our concierge service at support@example.com or via Live Chat.",
+          },
+        ].map((item, i) => (
+          <details key={i} className="group border-b border-neutral-100">
+            <summary className="flex cursor-pointer items-center justify-between py-6 text-[10px] font-black uppercase tracking-[0.3em] text-neutral-900 transition-colors hover:text-neutral-500">
+              {item.title}
+              <motion.span
+                animate={{ rotate: 0 }}
+                className="text-lg font-light group-open:rotate-45 transition-transform"
+              >
+                +
+              </motion.span>
             </summary>
-            <div className="pb-8 space-y-2 text-sm text-gray-600 animate-fadeIn">
-              <p className="flex justify-between">
-                <span className="font-medium text-gray-900">SKU:</span>
-                <span>{product.sku}</span>
-              </p>
-              {product.weight && (
-                <p className="flex justify-between">
-                  <span className="font-medium text-gray-900">Weight:</span>
-                  <span>{product.weight} kg</span>
-                </p>
-              )}
-              {product.dimensions.length && (
-                <p className="flex justify-between">
-                  <span className="font-medium text-gray-900">Dimensions:</span>
-                  <span>
-                    {product.dimensions.length} &times;{" "}
-                    {product.dimensions.width} &times;{" "}
-                    {product.dimensions.height} cm
-                  </span>
-                </p>
-              )}
-            </div>
+            <div
+              className="prose prose-neutral max-w-none pb-8 text-sm font-light leading-relaxed text-neutral-500 animate-in fade-in slide-in-from-top-2 duration-500"
+              dangerouslySetInnerHTML={{ __html: item.content || "" }}
+            />
           </details>
-        )}
-
-        <details className="group border-b border-gray-100">
-          <summary className="flex cursor-pointer items-center justify-between py-5 text-sm font-bold uppercase tracking-widest text-gray-900 transition-colors hover:text-gray-600">
-            Shipping & Returns
-            <span className="relative flex h-5 w-5 items-center justify-center">
-              <div className="h-4 w-[2px] bg-gray-400 transition-transform duration-300 group-open:rotate-90" />
-              <div className="absolute h-[2px] w-4 bg-gray-400" />
-            </span>
-          </summary>
-          <div className="pb-8 space-y-4 text-sm text-gray-600 animate-fadeIn font-sans leading-relaxed">
-            <p>
-              We offer free standard shipping on all orders over $150. Express
-              shipping options are available at checkout.
-            </p>
-            <p>
-              Returns are accepted within 30 days of purchase. Items must be in
-              their original condition with all tags attached.
-            </p>
-          </div>
-        </details>
+        ))}
       </div>
     </div>
   );
