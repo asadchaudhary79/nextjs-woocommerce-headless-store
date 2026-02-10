@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
+import { ShoppingBag } from "lucide-react";
 import { useCartStore, useCartItems, useCartTotal } from "@/stores/cart-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { formatPrice } from "@/lib/utils";
@@ -37,7 +38,7 @@ const checkoutSchema = z.object({
   orderNotes: z.string().optional(),
   createAccount: z.boolean().optional(),
   password: z.string().optional(),
-  paymentMethod: z.enum(["cod", "bacs", "cheque"]).default("cod"),
+  paymentMethod: z.enum(["cod", "bacs", "cheque"]),
 });
 
 type CheckoutFormData = z.infer<typeof checkoutSchema>;
@@ -72,10 +73,11 @@ export default function CheckoutPage() {
   const items = useCartItems();
   const total = useCartTotal();
   const { clearCart } = useCartStore();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, token } = useAuthStore();
 
   const [currentStep, setCurrentStep] = useState<Step>("information");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOrderCompleted, setIsOrderCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -183,32 +185,97 @@ export default function CheckoutPage() {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8">
         <div className="animate-pulse">
-          <div className="h-8 w-48 bg-gray-200 rounded mb-8"></div>
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="space-y-4">
-              <div className="h-12 bg-gray-200 rounded"></div>
-              <div className="h-12 bg-gray-200 rounded"></div>
-              <div className="h-12 bg-gray-200 rounded"></div>
+          <div className="h-12 w-64 bg-neutral-100 rounded-full mb-12" />
+          <div className="grid gap-12 lg:grid-cols-12">
+            <div className="lg:col-span-7 space-y-6">
+              <div className="h-64 bg-neutral-50 rounded-3xl" />
+              <div className="h-64 bg-neutral-50 rounded-3xl" />
             </div>
-            <div className="h-64 bg-gray-200 rounded"></div>
+            <div className="lg:col-span-5">
+              <div className="h-96 bg-neutral-50 rounded-3xl" />
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (items.length === 0) {
+  // Show a premium loader when submitting or redirecting after success
+  if (isSubmitting || isOrderCompleted) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-light">Your cart is empty</h1>
-          <p className="mt-2 text-gray-500">
-            Add some items to your cart before checkout.
-          </p>
-          <Link href="/shop">
-            <Button className="mt-8">Continue Shopping</Button>
-          </Link>
+      <div className="fixed inset-0 z-100 bg-white flex flex-col items-center justify-center p-8 text-center overflow-hidden">
+        {/* Abstract animated backgrounds */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            className="absolute top-[-20%] left-[-20%] w-[60%] h-[140%] border-r border-black rotate-12"
+          />
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[140%] border-l border-black -rotate-12"
+          />
         </div>
+
+        <div className="relative z-10 space-y-12">
+          {/* Logo / Icon Loader */}
+          <div className="relative flex justify-center">
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="h-24 w-24 rounded-full border-2 border-black/5 flex items-center justify-center outline outline-offset-8 outline-black/5 animate-pulse"
+            >
+              <ShoppingBag className="h-8 w-8 text-black" strokeWidth={1.5} />
+            </motion.div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-5xl font-black tracking-tighter uppercase">
+              {isOrderCompleted ? "Archiving Details" : "Processing Order"}
+            </h2>
+            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-neutral-400 italic">
+              Please do not refresh – Secure connection active
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0 && !isOrderCompleted) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-16 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-12 max-w-lg"
+        >
+          <div className="relative">
+            <div className="absolute inset-0 bg-neutral-50 rounded-full scale-[2.5] -z-10" />
+            <ShoppingBag
+              className="mx-auto h-16 w-16 text-neutral-200"
+              strokeWidth={1}
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h1 className="text-5xl font-black tracking-tighter uppercase leading-[0.9]">
+              Your cart is <br />
+              <span className="italic text-neutral-300">Quietly Empty</span>
+            </h1>
+            <p className="text-sm text-neutral-500 max-w-[300px] mx-auto leading-relaxed">
+              Meticulously designed pieces are waiting in our collections.
+              Discover your next essential.
+            </p>
+          </div>
+
+          <Link href="/shop" className="block">
+            <Button className="h-16 px-12 rounded-full bg-black hover:bg-neutral-800 text-[10px] font-black uppercase tracking-[0.4em] transition-all hover:scale-105 active:scale-95 shadow-xl">
+              Start Exploring
+            </Button>
+          </Link>
+        </motion.div>
       </div>
     );
   }
@@ -260,6 +327,9 @@ export default function CheckoutPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(isAuthenticated && token
+            ? { Authorization: `Bearer ${token}` }
+            : {}),
         },
         body: JSON.stringify({
           billing: billingAddress,
@@ -279,11 +349,11 @@ export default function CheckoutPage() {
         throw new Error(result.message || "Failed to create order");
       }
 
+      setIsOrderCompleted(true);
       clearCart();
       router.push(`/order-confirmation/${result.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -297,8 +367,9 @@ export default function CheckoutPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="mb-12">
-        <h1 className="text-3xl font-light">Checkout</h1>
-        {/* Step Progress Bar */}
+        <h1 className="text-4xl font-black tracking-tighter uppercase">
+          Checkout
+        </h1>
         <nav className="mt-8">
           <ol className="flex items-center gap-4">
             {steps.map((step, idx) => {
@@ -309,12 +380,12 @@ export default function CheckoutPage() {
                 <li key={step.id} className="flex flex-1 items-center gap-2">
                   <div
                     className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-                      isActive || isPast ? "bg-black" : "bg-gray-200"
+                      isActive || isPast ? "bg-black" : "bg-neutral-100"
                     }`}
                   />
                   <span
-                    className={`text-xs font-medium uppercase tracking-wider transition-colors duration-300 ${
-                      isActive ? "text-black" : "text-gray-400"
+                    className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-300 ${
+                      isActive ? "text-black" : "text-neutral-400"
                     }`}
                   >
                     {step.label}
@@ -339,13 +410,15 @@ export default function CheckoutPage() {
                 transition={{ duration: 0.3 }}
               >
                 <section>
-                  <h2 className="text-lg font-medium">Contact Information</h2>
+                  <h2 className="text-sm font-black uppercase tracking-widest mb-6 underline underline-offset-8 decoration-neutral-100">
+                    Contact Information
+                  </h2>
                   {!isAuthenticated && (
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-xs text-neutral-500 mb-4">
                       Already have an account?{" "}
                       <Link
                         href="/account/login?redirect=/checkout"
-                        className="text-black underline"
+                        className="text-black font-black underline underline-offset-4"
                       >
                         Log in
                       </Link>
@@ -357,28 +430,34 @@ export default function CheckoutPage() {
                       placeholder="Email address"
                       {...register("email")}
                       error={errors.email?.message}
+                      className="h-14 rounded-2xl bg-neutral-50 border-none focus:ring-black"
                     />
                   </div>
                 </section>
 
-                <section className="mt-8">
-                  <h2 className="text-lg font-medium">Billing Address</h2>
+                <section className="mt-12">
+                  <h2 className="text-sm font-black uppercase tracking-widest mb-6 underline underline-offset-8 decoration-neutral-100">
+                    Billing Address
+                  </h2>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <Input
                       placeholder="First name"
                       {...register("firstName")}
                       error={errors.firstName?.message}
+                      className="h-14 rounded-2xl bg-neutral-50 border-none"
                     />
                     <Input
                       placeholder="Last name"
                       {...register("lastName")}
                       error={errors.lastName?.message}
+                      className="h-14 rounded-2xl bg-neutral-50 border-none"
                     />
                     <div className="sm:col-span-2">
                       <Input
                         placeholder="Phone number"
                         {...register("phone")}
                         error={errors.phone?.message}
+                        className="h-14 rounded-2xl bg-neutral-50 border-none"
                       />
                     </div>
                     <div className="sm:col-span-2">
@@ -386,33 +465,38 @@ export default function CheckoutPage() {
                         placeholder="Address"
                         {...register("address1")}
                         error={errors.address1?.message}
+                        className="h-14 rounded-2xl bg-neutral-50 border-none"
                       />
                     </div>
                     <div className="sm:col-span-2">
                       <Input
                         placeholder="Apartment, suite, etc. (optional)"
                         {...register("address2")}
+                        className="h-14 rounded-2xl bg-neutral-50 border-none"
                       />
                     </div>
                     <Input
                       placeholder="City"
                       {...register("city")}
                       error={errors.city?.message}
+                      className="h-14 rounded-2xl bg-neutral-50 border-none"
                     />
                     <Input
                       placeholder="State / Province"
                       {...register("state")}
                       error={errors.state?.message}
+                      className="h-14 rounded-2xl bg-neutral-50 border-none"
                     />
                     <Input
                       placeholder="Postal code"
                       {...register("postcode")}
                       error={errors.postcode?.message}
+                      className="h-14 rounded-2xl bg-neutral-50 border-none"
                     />
                     <div className="flex flex-col">
                       <select
                         {...register("country")}
-                        className="w-full h-11 border border-gray-300 px-4 py-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                        className="w-full h-14 bg-neutral-50 border-none rounded-2xl px-4 py-2 text-sm focus:ring-black appearance-none font-bold uppercase tracking-tight"
                       >
                         <option value="US">United States</option>
                         <option value="CA">Canada</option>
@@ -422,7 +506,7 @@ export default function CheckoutPage() {
                         <option value="FR">France</option>
                       </select>
                       {errors.country && (
-                        <p className="mt-1.5 text-sm text-red-500">
+                        <p className="mt-1.5 text-xs text-red-500 font-bold">
                           {errors.country.message}
                         </p>
                       )}
@@ -430,61 +514,73 @@ export default function CheckoutPage() {
                   </div>
                 </section>
 
-                <section className="mt-8">
-                  <div className="flex items-center gap-2">
+                <section className="mt-8 p-6 bg-neutral-50 rounded-3xl border border-neutral-100">
+                  <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       id="shippingSameAsBilling"
                       {...register("shippingSameAsBilling")}
-                      className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
+                      className="h-5 w-5 rounded-lg border-neutral-300 text-black focus:ring-black"
                     />
-                    <label htmlFor="shippingSameAsBilling" className="text-sm">
+                    <label
+                      htmlFor="shippingSameAsBilling"
+                      className="text-xs font-black uppercase tracking-widest text-neutral-600 cursor-pointer"
+                    >
                       Shipping address same as billing
                     </label>
                   </div>
 
                   {!shippingSameAsBilling && (
-                    <div className="mt-6 animate-fadeIn">
-                      <h2 className="text-lg font-medium">Shipping Address</h2>
-                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div className="mt-8 animate-fadeIn space-y-4">
+                      <h2 className="text-sm font-black uppercase tracking-widest">
+                        Shipping Address
+                      </h2>
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <Input
                           placeholder="First name"
                           {...register("shippingFirstName")}
                           error={errors.shippingFirstName?.message}
+                          className="h-14 rounded-2xl bg-white border-neutral-200"
                         />
                         <Input
                           placeholder="Last name"
                           {...register("shippingLastName")}
                           error={errors.shippingLastName?.message}
+                          className="h-14 rounded-2xl bg-white border-neutral-200"
                         />
                         <div className="sm:col-span-2">
                           <Input
                             placeholder="Address"
                             {...register("shippingAddress1")}
                             error={errors.shippingAddress1?.message}
+                            className="h-14 rounded-2xl bg-white border-neutral-200"
                           />
                         </div>
                         <div className="sm:col-span-2">
                           <Input
                             placeholder="Apartment, suite, etc. (optional)"
                             {...register("shippingAddress2")}
+                            className="h-14 rounded-2xl bg-white border-neutral-200"
                           />
                         </div>
                         <Input
                           placeholder="City"
                           {...register("shippingCity")}
+                          className="h-14 rounded-2xl bg-white border-neutral-200"
                         />
                         <Input
                           placeholder="State / Province"
                           {...register("shippingState")}
+                          className="h-14 rounded-2xl bg-white border-neutral-200"
                         />
                         <Input
                           placeholder="Postal code"
                           {...register("shippingPostcode")}
+                          className="h-14 rounded-2xl bg-white border-neutral-200"
                         />
                         <select
                           {...register("shippingCountry")}
-                          className="w-full h-11 border border-gray-300 px-4 py-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                          className="w-full h-14 bg-white border-neutral-200 rounded-2xl px-4 py-2 text-sm focus:ring-black appearance-none font-bold uppercase tracking-tight"
                         >
                           <option value="US">United States</option>
                           <option value="CA">Canada</option>
@@ -498,35 +594,12 @@ export default function CheckoutPage() {
                   )}
                 </section>
 
-                {!isAuthenticated && (
-                  <section className="mt-8">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="createAccount"
-                        {...register("createAccount")}
-                        className="h-4 w-4 rounded-none border-gray-300 text-black focus:ring-black"
-                      />
-                      <label htmlFor="createAccount" className="text-sm">
-                        Create an account for faster checkout
-                      </label>
-                    </div>
-
-                    {createAccount && (
-                      <div className="mt-4">
-                        <Input
-                          type="password"
-                          placeholder="Create password"
-                          {...register("password")}
-                          error={errors.password?.message}
-                        />
-                      </div>
-                    )}
-                  </section>
-                )}
-
-                <div className="mt-8 flex justify-end">
-                  <Button type="button" onClick={validateInformation} size="lg">
+                <div className="mt-12 flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={validateInformation}
+                    className="h-16 px-12 rounded-full bg-black text-[10px] font-black uppercase tracking-[0.4em] hover:scale-105 transition-all"
+                  >
                     Continue to Payment
                   </Button>
                 </div>
@@ -542,32 +615,39 @@ export default function CheckoutPage() {
                 transition={{ duration: 0.3 }}
               >
                 <section>
-                  <h2 className="text-lg font-medium">Payment Method</h2>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <h2 className="text-sm font-black uppercase tracking-widest mb-2 underline underline-offset-8 decoration-neutral-100">
+                    Payment Method
+                  </h2>
+                  <p className="mb-8 text-xs text-neutral-400 font-bold uppercase tracking-widest italic">
                     All transactions are secure and encrypted.
                   </p>
 
-                  <div className="mt-6 space-y-4">
+                  <div className="space-y-4">
                     {PAYMENT_METHODS.map((method) => (
                       <label
                         key={method.id}
-                        className={`flex cursor-pointer border p-4 transition-all duration-200 ${
+                        className={`group flex cursor-pointer rounded-3xl border-2 p-6 transition-all duration-500 ${
                           paymentMethod === method.id
-                            ? "border-black bg-gray-50 ring-1 ring-black"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-black bg-neutral-50 shadow-xl"
+                            : "border-neutral-100 hover:border-neutral-200 bg-white"
                         }`}
                       >
-                        <input
-                          type="radio"
-                          {...register("paymentMethod")}
-                          value={method.id}
-                          className="mt-1 h-4 w-4 border-gray-300 text-black focus:ring-black"
-                        />
-                        <div className="ml-4">
-                          <span className="block text-sm font-bold uppercase tracking-tight">
+                        <div className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-neutral-200 group-hover:border-black transition-colors">
+                          <input
+                            type="radio"
+                            {...register("paymentMethod")}
+                            value={method.id}
+                            className="peer sr-only"
+                          />
+                          <div
+                            className={`h-3 w-3 rounded-full bg-black transition-transform duration-300 ${paymentMethod === method.id ? "scale-100" : "scale-0"}`}
+                          />
+                        </div>
+                        <div className="ml-6">
+                          <span className="block text-[11px] font-black uppercase tracking-[0.2em]">
                             {method.label}
                           </span>
-                          <span className="mt-1 block text-xs text-gray-500 leading-relaxed">
+                          <span className="mt-2 block text-[10px] text-neutral-400 font-bold leading-relaxed max-w-sm">
                             {method.description}
                           </span>
                         </div>
@@ -575,13 +655,13 @@ export default function CheckoutPage() {
                     ))}
 
                     <div className="opacity-40 grayscale pointer-events-none">
-                      <div className="flex border border-gray-100 p-4">
-                        <div className="mt-1 h-4 w-4 rounded-full border border-gray-200" />
-                        <div className="ml-4">
-                          <span className="block text-sm font-medium text-gray-400">
+                      <div className="flex rounded-3xl border-2 border-neutral-50 p-6 bg-neutral-50/50">
+                        <div className="h-6 w-6 rounded-full border-2 border-neutral-100" />
+                        <div className="ml-6">
+                          <span className="block text-[11px] font-black uppercase text-neutral-300 tracking-[0.2em]">
                             Credit Card (Coming Soon)
                           </span>
-                          <span className="mt-1 block text-xs text-gray-400">
+                          <span className="mt-2 block text-[10px] text-neutral-300 font-bold">
                             Secure payment via Stripe.
                           </span>
                         </div>
@@ -590,27 +670,31 @@ export default function CheckoutPage() {
                   </div>
                 </section>
 
-                <section className="mt-8">
-                  <h2 className="text-lg font-medium">
-                    Order Notes (Optional)
+                <section className="mt-12">
+                  <h2 className="text-sm font-black uppercase tracking-widest mb-6 underline underline-offset-8 decoration-neutral-100">
+                    Order Notes
                   </h2>
                   <textarea
                     {...register("orderNotes")}
                     rows={4}
-                    className="mt-4 w-full border border-gray-300 px-4 py-3 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                    className="w-full bg-neutral-50 border-none rounded-3xl px-6 py-5 text-sm focus:ring-black placeholder:text-neutral-300 outline-none"
                     placeholder="Enter any special instructions for your delivery..."
                   />
                 </section>
 
-                <div className="mt-8 flex items-center justify-between">
+                <div className="mt-12 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={backStep}
-                    className="text-sm font-medium text-gray-500 hover:text-black hover:underline"
+                    className="text-[10px] font-black uppercase tracking-[0.4em] text-neutral-400 hover:text-black transition-colors"
                   >
-                    Back to Information
+                    ← Information
                   </button>
-                  <Button type="button" onClick={nextToReview} size="lg">
+                  <Button
+                    type="button"
+                    onClick={nextToReview}
+                    className="h-16 px-12 rounded-full bg-black text-[10px] font-black uppercase tracking-[0.4em] hover:scale-105 transition-all"
+                  >
                     Continue to Review
                   </Button>
                 </div>
@@ -626,28 +710,33 @@ export default function CheckoutPage() {
                 transition={{ duration: 0.3 }}
               >
                 <div className="space-y-8">
-                  {/* Summary of info */}
-                  <div className="rounded border bg-gray-50 p-6">
-                    <h3 className="text-sm font-bold uppercase tracking-wider">
-                      Estimated for Delivery
+                  <div className="rounded-4xl bg-neutral-50 p-8 space-y-8">
+                    <h3 className="text-sm font-black uppercase tracking-[0.3em]">
+                      Destination Summary
                     </h3>
-                    <div className="mt-4 grid grid-cols-2 gap-8 text-sm">
-                      <div>
-                        <p className="font-medium">Contact</p>
-                        <p className="text-gray-600">{formData.email}</p>
-                        <p className="text-gray-600">{formData.phone}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-[11px] font-bold uppercase tracking-widest leading-relaxed">
+                      <div className="space-y-2">
+                        <p className="text-neutral-300 font-black">
+                          Contact Detail
+                        </p>
+                        <p className="text-black">{formData.email}</p>
+                        <p className="text-black">{formData.phone}</p>
                       </div>
-                      <div>
-                        <p className="font-medium">Ship to</p>
-                        <p className="text-gray-600">
+                      <div className="space-y-2">
+                        <p className="text-neutral-300 font-black">
+                          Shipping Route
+                        </p>
+                        <p className="text-black">
                           {formData.shippingSameAsBilling
                             ? `${formData.address1}, ${formData.city} ${formData.postcode}`
                             : `${formData.shippingAddress1}, ${formData.shippingCity} ${formData.shippingPostcode}`}
                         </p>
                       </div>
-                      <div>
-                        <p className="font-medium">Payment Method</p>
-                        <p className="text-gray-600 font-bold">
+                      <div className="space-y-2">
+                        <p className="text-neutral-300 font-black">
+                          Method of Acquisition
+                        </p>
+                        <p className="text-black font-black bg-white px-3 py-1 rounded-full border border-neutral-100 inline-block">
                           {
                             PAYMENT_METHODS.find(
                               (m) => m.id === formData.paymentMethod,
@@ -658,21 +747,18 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h2 className="text-lg font-medium">Order Review</h2>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                      By clicking "Place Order", you agree to our terms of
-                      service and acknowledge that your payment method is
-                      <span className="font-bold text-black">
-                        {" "}
-                        {
-                          PAYMENT_METHODS.find(
-                            (m) => m.id === formData.paymentMethod,
-                          )?.title
-                        }
+                  <div className="p-8 border border-neutral-100 rounded-4xl bg-white space-y-4">
+                    <h2 className="text-sm font-black uppercase tracking-widest">
+                      Final Ledger
+                    </h2>
+                    <p className="text-[11px] font-bold text-neutral-400 leading-6 tracking-widest uppercase">
+                      By placing this order, you authorize the acquisition of
+                      these curated items and agree to the
+                      <span className="text-black underline underline-offset-4 ml-1">
+                        Archive Protocols
                       </span>
-                      . Total amount due:{" "}
-                      <span className="font-bold text-black">
+                      . Total investment:{" "}
+                      <span className="text-black font-black">
                         {formatPrice(total)}
                       </span>
                       .
@@ -680,27 +766,26 @@ export default function CheckoutPage() {
                   </div>
 
                   {error && (
-                    <div className="rounded bg-red-50 p-4 text-sm text-red-600">
-                      {error}
+                    <div className="rounded-2xl bg-red-50 p-6 text-[10px] font-black uppercase tracking-widest text-red-600 border border-red-100">
+                      Error: {error}
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-12">
                     <button
                       type="button"
                       onClick={backStep}
-                      className="text-sm font-medium text-gray-500 hover:text-black hover:underline"
+                      className="text-[10px] font-black uppercase tracking-[0.4em] text-neutral-400 hover:text-black transition-colors"
                     >
-                      Back to Payment
+                      ← Payment
                     </button>
                     <Button
                       type="button"
-                      size="lg"
                       disabled={isSubmitting}
                       onClick={handleSubmit(onSubmit as any)}
-                      className="px-12"
+                      className="h-16 px-12 rounded-full bg-black text-[10px] font-black uppercase tracking-[0.4em] transition-all hover:scale-105 active:scale-95 shadow-2xl disabled:opacity-50"
                     >
-                      {isSubmitting ? "Processing..." : "Place Order"}
+                      {isSubmitting ? "Finalizing..." : "Place Order"}
                     </Button>
                   </div>
                 </div>
@@ -711,56 +796,57 @@ export default function CheckoutPage() {
 
         {/* Order Summary Sidebar */}
         <div className="mt-12 lg:col-span-5 lg:mt-0">
-          <div className="sticky top-24 rounded border border-gray-100 bg-gray-50 p-6 shadow-sm">
-            <h2 className="text-lg font-medium">Order Summary</h2>
+          <div className="sticky top-24 rounded-4xl border border-neutral-100 bg-neutral-50 p-8 shadow-sm">
+            <h2 className="text-xl font-black tracking-tighter uppercase mb-8">
+              Your Selection
+            </h2>
 
-            {/* Items */}
-            <div className="mt-6 divide-y divide-gray-200">
+            <div className="space-y-6 divide-y divide-neutral-100">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-4 py-4">
-                  <div className="relative h-20 w-16 flex-shrink-0 overflow-hidden bg-gray-100">
+                <div key={item.id} className="flex gap-6 py-6 first:pt-0">
+                  <div className="relative h-28 w-20 shrink-0 overflow-hidden bg-white rounded-2xl border border-neutral-100">
                     {item.image ? (
                       <Image
                         src={item.image}
                         alt={item.name}
                         fill
-                        className="object-cover"
-                        sizes="64px"
+                        className="object-cover transition-transform duration-700 hover:scale-110"
+                        sizes="100px"
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-gray-400">
-                        <svg
-                          className="h-6 w-6"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1}
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
+                      <div className="flex h-full items-center justify-center text-neutral-200">
+                        <ShoppingBag strokeWidth={1} />
                       </div>
                     )}
-                    <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-black text-xs text-white">
+                    <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black text-[10px] font-black text-white shadow-lg">
                       {item.quantity}
                     </span>
                   </div>
-                  <div className="flex flex-1 flex-col justify-center">
-                    <span className="text-sm font-medium">{item.name}</span>
+                  <div className="flex flex-1 flex-col justify-center space-y-2">
+                    <span className="text-xs font-black uppercase tracking-widest leading-tight">
+                      {item.name}
+                    </span>
                     {item.attributes &&
                       Object.keys(item.attributes).length > 0 && (
-                        <span className="text-xs text-gray-500">
-                          {Object.entries(item.attributes)
-                            .map(([key, value]) => `${key}: ${value}`)
-                            .join(" / ")}
-                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(item.attributes).map(
+                            ([key, value]) => (
+                              <span
+                                key={key}
+                                className="text-[9px] font-black uppercase tracking-widest text-neutral-400 bg-white px-2 py-0.5 rounded-full border border-neutral-100"
+                              >
+                                {value}
+                              </span>
+                            ),
+                          )}
+                        </div>
                       )}
+                    <span className="text-[10px] font-black tracking-widest text-neutral-300 italic uppercase">
+                      Archived Item
+                    </span>
                   </div>
                   <div className="flex items-center">
-                    <span className="text-sm text-gray-900">
+                    <span className="text-xs font-black tracking-tight">
                       {formatPrice(item.price * item.quantity)}
                     </span>
                   </div>
@@ -769,85 +855,85 @@ export default function CheckoutPage() {
             </div>
 
             {/* Totals */}
-            <div className="mt-6 space-y-3 border-t border-gray-200 pt-6">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">{formatPrice(total)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Shipping</span>
-                <span className="text-green-600 font-medium">Free</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Tax</span>
-                <span className="font-medium">$0.00</span>
-              </div>
-            </div>
-
-            <div className="mt-6 border-t border-gray-200 pt-6">
-              <div className="flex justify-between text-xl font-bold">
-                <span>Total</span>
+            <div className="mt-8 space-y-4 border-t-2 border-dashed border-neutral-200 pt-8">
+              <div className="flex justify-between text-[11px] font-black uppercase tracking-widest">
+                <span className="text-neutral-400">Sub-investment</span>
                 <span>{formatPrice(total)}</span>
               </div>
-              <p className="mt-2 text-right text-xs text-gray-400 italic">
-                Including taxes
-              </p>
+              <div className="flex justify-between text-[11px] font-black uppercase tracking-widest">
+                <span className="text-neutral-400">Shipping</span>
+                <span className="text-green-500 font-black italic underline underline-offset-4 decoration-2">
+                  Complimentary
+                </span>
+              </div>
+              <div className="flex justify-between text-[11px] font-black uppercase tracking-widest border-t border-neutral-100 pt-6">
+                <span className="text-black text-lg">Total</span>
+                <span className="text-black text-2xl tracking-tighter">
+                  {formatPrice(total)}
+                </span>
+              </div>
             </div>
 
             {/* Trust Badges */}
-            <div className="mt-8 flex items-center justify-center gap-6 text-gray-400">
-              <div className="flex flex-col items-center gap-1">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-                <span className="text-[10px] uppercase font-bold tracking-tight">
-                  Verified
-                </span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-                <span className="text-[10px] uppercase font-bold tracking-tight">
+            <div className="mt-12 flex items-center justify-between px-2">
+              <div className="flex flex-col items-center gap-2 opacity-30 hover:opacity-100 transition-opacity duration-500">
+                <div className="h-10 w-10 rounded-full border border-neutral-300 flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                </div>
+                <span className="text-[8px] font-black uppercase tracking-[0.2em]">
                   Secure
                 </span>
               </div>
-              <div className="flex flex-col items-center gap-1">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                  />
-                </svg>
-                <span className="text-[10px] uppercase font-bold tracking-tight">
-                  Payments
+              <div className="flex flex-col items-center gap-2 opacity-30 hover:opacity-100 transition-opacity duration-500">
+                <div className="h-10 w-10 rounded-full border border-neutral-300 flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    />
+                  </svg>
+                </div>
+                <span className="text-[8px] font-black uppercase tracking-[0.2em]">
+                  Verified
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-2 opacity-30 hover:opacity-100 transition-opacity duration-500">
+                <div className="h-10 w-10 rounded-full border border-neutral-300 flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                    />
+                  </svg>
+                </div>
+                <span className="text-[8px] font-black uppercase tracking-[0.2em]">
+                  Authentic
                 </span>
               </div>
             </div>

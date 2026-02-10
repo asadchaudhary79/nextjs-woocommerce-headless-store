@@ -1,17 +1,17 @@
-import { NextResponse } from 'next/server';
-import { wooCommerce } from '@/lib/woocommerce';
-import { validateToken, getCurrentUser } from '@/lib/auth';
+import { NextResponse } from "next/server";
+import { wooCommerce } from "@/lib/woocommerce";
+import { validateToken, getCurrentUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
     // Get token from Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
       return NextResponse.json(
-        { message: 'Authentication required' },
-        { status: 401 }
+        { message: "Authentication required" },
+        { status: 401 },
       );
     }
 
@@ -19,8 +19,8 @@ export async function GET(request: Request) {
     const isValid = await validateToken(token);
     if (!isValid) {
       return NextResponse.json(
-        { message: 'Invalid or expired token' },
-        { status: 401 }
+        { message: "Invalid or expired token" },
+        { status: 401 },
       );
     }
 
@@ -30,20 +30,25 @@ export async function GET(request: Request) {
     // Get customer by email
     const customer = await wooCommerce.customers.getByEmail(user.email);
     if (!customer) {
-      // Return empty array if no customer found
+      console.log("No WooCommerce customer found for email:", user.email);
       return NextResponse.json([]);
     }
 
     // Get orders for this customer
     const orders = await wooCommerce.orders.listByCustomer(customer.id, {
-      per_page: 20,
+      per_page: 50,
     });
+
+    console.log(
+      `Found ${orders.length} orders for customer ID: ${customer.id}`,
+    );
 
     return NextResponse.json(orders);
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    console.error("Error fetching orders:", error);
 
-    const message = error instanceof Error ? error.message : 'Failed to fetch orders';
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch orders";
     return NextResponse.json({ message }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { wooCommerce } from "@/lib/woocommerce";
 import { ProductGrid } from "@/components/product/product-grid";
 import { ProductGridSkeleton } from "@/components/ui/skeleton";
@@ -79,35 +80,54 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const categories = await wooCommerce.categories.list({ per_page: 20 });
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-light">Shop All</h1>
-        {params.search && (
-          <p className="mt-2 text-gray-500">
-            Search results for &quot;{params.search}&quot;
-          </p>
-        )}
-      </div>
+    <div className="bg-white">
+      {/* Editorial Header */}
+      <header className="relative py-24 lg:py-32 bg-neutral-50 overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[120%] border-r border-black rotate-12" />
+          <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[120%] border-l border-black -rotate-12" />
+        </div>
 
-      <div className="lg:grid lg:grid-cols-4 lg:gap-8">
-        {/* Filters Sidebar */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-24">
-            <ShopFilters categories={categories} />
+        <div className="mx-auto max-w-7xl px-4 lg:px-8 relative z-10">
+          <div className="flex flex-col items-center text-center space-y-6">
+            <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.4em] text-neutral-400">
+              <Link href="/" className="hover:text-black transition-colors">
+                Home
+              </Link>
+              <span className="w-1 h-1 rounded-full bg-neutral-300" />
+              <span className="text-black">Shop All</span>
+            </nav>
+            <h1 className="text-6xl lg:text-8xl font-black tracking-tighter uppercase leading-none">
+              The <span className="italic font-light">Archive</span>
+            </h1>
+            <p className="max-w-xl text-lg text-neutral-500 font-light leading-relaxed">
+              Explore our complete collection of meticulously crafted
+              essentials, designed for the modern individual.
+            </p>
           </div>
-        </aside>
+        </div>
+      </header>
 
-        {/* Mobile Filters Drawer */}
-        <MobileFilters categories={categories} />
+      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8">
+        <div className="lg:grid lg:grid-cols-12 lg:gap-16">
+          {/* Filters Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <div className="sticky top-32">
+              <ShopFilters categories={categories} />
+            </div>
+          </aside>
 
-        {/* Products Grid */}
-        <div className="lg:col-span-3">
-          <ShopToolbar />
+          {/* Table-side / Mobile Filters */}
+          <MobileFilters categories={categories} />
 
-          <Suspense fallback={<ProductGridSkeleton count={12} />}>
-            <ProductList searchParams={searchParams} />
-          </Suspense>
+          {/* Products Grid */}
+          <div className="lg:col-span-9">
+            <ShopToolbar />
+
+            <Suspense fallback={<ProductGridSkeleton count={12} />}>
+              <ProductList searchParams={searchParams} />
+            </Suspense>
+          </div>
         </div>
       </div>
     </div>

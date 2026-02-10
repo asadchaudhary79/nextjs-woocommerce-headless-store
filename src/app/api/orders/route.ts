@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { wooCommerce } from "@/lib/woocommerce";
+import { validateToken, getCurrentUser } from "@/lib/auth";
 import type { WCAddress } from "@/types/woocommerce";
 
 interface OrderRequestBody {
@@ -29,9 +30,30 @@ export async function POST(request: Request) {
       );
     }
 
-    // If user wants to create an account, create customer first
     let customerId = 0;
-    if (body.create_account && body.password && body.billing.email) {
+
+    // 1. Check if user is authenticated via Bearer token
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.replace("Bearer ", "");
+
+    if (token) {
+      const isValid = await validateToken(token);
+      if (isValid) {
+        const user = await getCurrentUser(token);
+        const customer = await wooCommerce.customers.getByEmail(user.email);
+        if (customer) {
+          customerId = customer.id;
+        }
+      }
+    }
+
+    // 2. If not authenticated but wants to create an account
+    if (
+      customerId === 0 &&
+      body.create_account &&
+      body.password &&
+      body.billing.email
+    ) {
       try {
         const customer = await wooCommerce.customers.create({
           email: body.billing.email,
@@ -50,7 +72,6 @@ export async function POST(request: Request) {
         if (existingCustomer) {
           customerId = existingCustomer.id;
         }
-        // If customer creation fails for other reasons, continue without customer ID
         console.error("Customer creation error:", err);
       }
     }

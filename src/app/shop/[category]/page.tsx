@@ -1,9 +1,13 @@
-import { Suspense } from 'react';
-import { notFound } from 'next/navigation';
-import { wooCommerce } from '@/lib/woocommerce';
-import { ProductGrid } from '@/components/product/product-grid';
-import { ProductGridSkeleton } from '@/components/ui/skeleton';
-import type { Metadata } from 'next';
+import { Suspense } from "react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { wooCommerce } from "@/lib/woocommerce";
+import { ProductGrid } from "@/components/product/product-grid";
+import { ProductGridSkeleton } from "@/components/ui/skeleton";
+import { ShopToolbar } from "@/components/shop/shop-toolbar";
+import { ShopFilters } from "@/components/shop/shop-filters";
+import { MobileFilters } from "@/components/shop/mobile-filters";
+import type { Metadata } from "next";
 
 interface CategoryPageProps {
   params: Promise<{ category: string }>;
@@ -11,20 +15,24 @@ interface CategoryPageProps {
     page?: string;
     orderby?: string;
     order?: string;
+    columns?: string;
   }>;
 }
 
-export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: CategoryPageProps): Promise<Metadata> {
   const { category: categorySlug } = await params;
   const category = await wooCommerce.categories.getBySlug(categorySlug);
 
   if (!category) {
-    return { title: 'Category Not Found' };
+    return { title: "Category Not Found" };
   }
 
   return {
     title: category.name,
-    description: category.description || `Shop our ${category.name} collection.`,
+    description:
+      category.description || `Shop our ${category.name} collection.`,
   };
 }
 
@@ -33,39 +41,43 @@ async function CategoryProducts({
   searchParams,
 }: {
   categoryId: number;
-  searchParams: CategoryPageProps['searchParams'];
+  searchParams: CategoryPageProps["searchParams"];
 }) {
   const params = await searchParams;
-  const page = parseInt(params.page || '1');
+  const page = parseInt(params.page || "1");
+  const columns = parseInt(params.columns || "4") as 2 | 3 | 4;
   const perPage = 12;
 
   const products = await wooCommerce.products.list({
     category: String(categoryId),
     page,
     per_page: perPage,
-    orderby: params.orderby as 'date' | 'price' | 'popularity' | undefined,
-    order: params.order as 'asc' | 'desc' | undefined,
+    orderby: params.orderby as "date" | "price" | "popularity" | undefined,
+    order: params.order as "asc" | "desc" | undefined,
   });
 
   if (products.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-gray-500">No products found in this category.</p>
+      <div className="py-24 text-center border-t border-neutral-100">
+        <p className="text-neutral-400 italic">
+          No products were found in this collection.
+        </p>
       </div>
     );
   }
 
   return (
     <>
-      <ProductGrid products={products} columns={4} />
+      <ProductGrid products={products} columns={columns} />
 
       {products.length === perPage && (
-        <div className="mt-12 flex justify-center">
+        <div className="mt-16 flex justify-center border-t border-neutral-100 pt-12">
           <a
             href={`?page=${page + 1}`}
-            className="border border-black px-8 py-3 text-sm font-medium hover:bg-black hover:text-white transition-colors"
+            className="group relative overflow-hidden border border-black px-12 py-4 text-xs font-bold uppercase tracking-widest transition-all hover:text-white"
           >
-            Load More
+            <span className="relative z-10">Load More</span>
+            <div className="absolute inset-0 z-0 translate-y-full bg-black transition-transform duration-300 group-hover:translate-y-0" />
           </a>
         </div>
       )}
@@ -73,7 +85,10 @@ async function CategoryProducts({
   );
 }
 
-export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
+export default async function CategoryPage({
+  params,
+  searchParams,
+}: CategoryPageProps) {
   const { category: categorySlug } = await params;
   const category = await wooCommerce.categories.getBySlug(categorySlug);
 
@@ -84,81 +99,64 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const allCategories = await wooCommerce.categories.list({ per_page: 20 });
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-      {/* Header */}
-      <div className="mb-8">
-        <nav className="mb-4 text-sm text-gray-500">
-          <a href="/shop" className="hover:text-black">Shop</a>
-          <span className="mx-2">/</span>
-          <span className="text-black">{category.name}</span>
-        </nav>
-        <h1 className="text-3xl font-light">{category.name}</h1>
-        {category.description && (
-          <p className="mt-2 text-gray-600" dangerouslySetInnerHTML={{ __html: category.description }} />
-        )}
-        <p className="mt-2 text-sm text-gray-500">{category.count} products</p>
-      </div>
+    <div className="bg-white min-h-screen">
+      {/* Category Header */}
+      <header className="relative py-24 lg:py-32 bg-neutral-50 overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none">
+          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[140%] border border-black rounded-full" />
+        </div>
 
-      <div className="lg:grid lg:grid-cols-4 lg:gap-8">
-        {/* Filters Sidebar */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 space-y-8">
-            {/* Categories */}
-            <div>
-              <h3 className="text-sm font-medium uppercase tracking-wider">Categories</h3>
-              <ul className="mt-4 space-y-2">
-                <li>
-                  <a
-                    href="/shop"
-                    className="text-sm text-gray-600 hover:text-black"
-                  >
-                    All Products
-                  </a>
-                </li>
-                {allCategories.map((cat) => (
-                  <li key={cat.id}>
-                    <a
-                      href={`/shop/${cat.slug}`}
-                      className={`text-sm hover:text-black ${
-                        cat.id === category.id ? 'font-medium text-black' : 'text-gray-600'
-                      }`}
-                    >
-                      {cat.name} ({cat.count})
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Sort Options */}
-            <div>
-              <h3 className="text-sm font-medium uppercase tracking-wider">Sort By</h3>
-              <ul className="mt-4 space-y-2">
-                <li>
-                  <a href="?orderby=date&order=desc" className="text-sm text-gray-600 hover:text-black">
-                    Newest
-                  </a>
-                </li>
-                <li>
-                  <a href="?orderby=price&order=asc" className="text-sm text-gray-600 hover:text-black">
-                    Price: Low to High
-                  </a>
-                </li>
-                <li>
-                  <a href="?orderby=price&order=desc" className="text-sm text-gray-600 hover:text-black">
-                    Price: High to Low
-                  </a>
-                </li>
-              </ul>
+        <div className="mx-auto max-w-7xl px-4 lg:px-8 relative z-10">
+          <div className="flex flex-col items-center text-center space-y-6">
+            <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.4em] text-neutral-400">
+              <Link href="/shop" className="hover:text-black transition-colors">
+                Shop
+              </Link>
+              <span className="w-1 h-1 rounded-full bg-neutral-300" />
+              <span className="text-black">{category.name}</span>
+            </nav>
+            <h1 className="text-6xl lg:text-8xl font-black tracking-tighter uppercase leading-none">
+              {category.name}
+            </h1>
+            {category.description && (
+              <div
+                className="max-w-xl text-lg text-neutral-500 font-light leading-relaxed prose prose-neutral prose-sm"
+                dangerouslySetInnerHTML={{ __html: category.description }}
+              />
+            )}
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-neutral-100 rounded-full shadow-sm">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">
+                {category.count} items available
+              </span>
             </div>
           </div>
-        </aside>
+        </div>
+      </header>
 
-        {/* Products Grid */}
-        <div className="lg:col-span-3">
-          <Suspense fallback={<ProductGridSkeleton count={12} />}>
-            <CategoryProducts categoryId={category.id} searchParams={searchParams} />
-          </Suspense>
+      <div className="mx-auto max-w-7xl px-4 py-16 lg:px-8">
+        <div className="lg:grid lg:grid-cols-12 lg:gap-16">
+          {/* Filters Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <div className="sticky top-32">
+              <ShopFilters categories={allCategories} />
+            </div>
+          </aside>
+
+          {/* Table-side / Mobile Filters */}
+          <MobileFilters categories={allCategories} />
+
+          {/* Products Grid */}
+          <div className="lg:col-span-9">
+            <ShopToolbar />
+
+            <Suspense fallback={<ProductGridSkeleton count={12} />}>
+              <CategoryProducts
+                categoryId={category.id}
+                searchParams={searchParams}
+              />
+            </Suspense>
+          </div>
         </div>
       </div>
     </div>
